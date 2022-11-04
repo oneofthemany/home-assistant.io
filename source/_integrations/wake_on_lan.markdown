@@ -117,10 +117,19 @@ from Home Assistant running on another Linux computer (the **server**).
 2. On the **server**, create SSH keys by running `ssh-keygen`. Just press enter on all questions.
 3. On the **target**, create a new account that Home Assistant can ssh into: `sudo adduser hass`. Just press enter on all questions except password. It's recommended using the same user name as on the server. If you do, you can leave out `hass@` in the SSH commands below.
 4. On the **server**, transfer your public SSH key by `ssh-copy-id hass@TARGET` where TARGET is your target machine's name or IP address. Enter the password you created in step 3.
-5. On the **server**, verify that you can reach your target machine without password by `ssh TARGET`.
-6. On the **target**, we need to let the `hass` user execute the program needed to suspend/shut down the target computer. Here is it `pm-suspend`, use `poweroff` to turn off the computer. First, get the full path: `which pm-suspend`. On my system, this is `/usr/sbin/pm-suspend`.
-7. On the **target**, using an account with sudo access (typically your main account), `sudo visudo`. Add this line last in the file: `hass ALL=NOPASSWD:/usr/sbin/pm-suspend`, where you replace `hass` with the name of your user on the target, if different, and `/usr/sbin/pm-suspend` with the command of your choice, if different.
-8. On the **server**, add the following to your configuration, replacing TARGET with the target's name:
+5. On the **server**, create a file named "config" in /root/.ssh/
+```
+Host <name_of_target> # can be any name you want
+HostName <ip_address_of_target>
+User hass
+IdentityFile /root/.ssh/id_rsa
+Port <optional_port_if_different_from_default>
+StrictHostKeyChecking no
+```
+6. On the **server**, verify that you can reach your **target** machine without password by using the "Host" name in the ssh config above `ssh TARGET`.
+7. On the **target**, we need to let the `hass` user execute the program needed to suspend/shut down the target computer. Here is it `pm-suspend`, use `poweroff` to turn off the computer. First, get the full path: `which pm-suspend`. On my system, this is `/usr/sbin/pm-suspend`.
+8. On the **target**, using an account with sudo access (typically your main account), `sudo visudo`. Add this line last in the file: `hass ALL=NOPASSWD:/usr/sbin/pm-suspend`, where you replace `hass` with the name of your user on the target, if different, and `/usr/sbin/pm-suspend` with the command of your choice, if different.
+9. On the **server**, add the following to your configuration, replacing TARGET with the target's name:
 
 ```yaml
 switch:
@@ -131,5 +140,27 @@ switch:
       service: shell_command.turn_off_TARGET
 
 shell_command:
-  turn_off_TARGET: "ssh hass@TARGET sudo pm-suspend"
+  turn_off_TARGET: "ssh TARGET sudo pm-suspend"
+```
+#### Container Users
+
+Ensure you copy the keys created out of the **server**:
+Podman
+```
+sudo podman cp hassos:/root/.ssh/* /<WORKING_DIR>/.ssh/
+```
+Docker
+```
+sudo docker cp hassos:/root/.ssh/* /<WORKING_DIR>/.ssh/
+```
+and then map the keys and config in your container using eithe of the following volume statements:
+
+***Docker Compose***
+```yaml
+volumes:
+  - /path/to/.ssh:/root/.ssh
+```
+***Volume Statement***
+```
+-v /path/to/.ssh:/root/.ssh \
 ```
